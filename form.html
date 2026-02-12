@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hotel Planet 9 - Master Invoice Editor</title>
+    <style>
+        /* Editor UI - Hidden during printing */
+        .no-print { 
+            background: #f8f9fa; padding: 20px; border-bottom: 2px solid #dee2e6; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px; margin: 0 auto 20px auto; border-radius: 8px;
+        }
+        .editor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
+        .field label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #495057; text-transform: uppercase; }
+        .field input, .field textarea { width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; box-sizing: border-box; }
+        .full-width { grid-column: span 2; }
+        .btn-print { 
+            margin-top: 20px; padding: 12px 25px; background: #28a745; color: white; 
+            border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%;
+        }
+
+        /* --- PRECISE INVOICE FORMATTING --- */
+        @page { size: A4; margin: 0; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11px; color: #000; margin: 0; padding: 0; }
+        .container { 
+            width: 210mm; min-height: 297mm; padding: 20mm; margin: 20px auto; 
+            background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; 
+        }
+
+        .header { text-align: center; margin-bottom: 5px; }
+        .header h1 { margin: 0; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; }
+        .address-line { font-size: 11px; margin: 2px 0; font-weight: bold; }
+        
+        .tax-invoice-bar { 
+            border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; 
+            text-align: center; font-weight: bold; margin: 5px 0; padding: 2px 0; 
+            display: flex; justify-content: space-between; 
+        }
+        .tax-invoice-bar span { flex: 1; text-align: center; }
+        .tax-invoice-bar .page-num { text-align: right; font-weight: normal; font-size: 10px; }
+
+        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .info-table td { padding: 3px 0; vertical-align: top; }
+        .label { font-weight: bold; width: 80px; }
+        .colon { width: 10px; }
+        .val { width: 180px; }
+
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .data-table thead th { border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; padding: 5px 2px; text-align: left; font-size: 10px; }
+        .data-table td { padding: 6px 2px; }
+        .border-bottom { border-bottom: 1px solid #000; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+
+        .totals-row { border-top: 1px dotted #000; font-weight: bold; }
+        .net-balance { margin-top: 20px; font-weight: bold; display: flex; justify-content: space-between; font-size: 12px; }
+        .footer-sigs { margin-top: 80px; display: flex; justify-content: space-between; font-weight: bold; }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; padding: 0; }
+            .container { margin: 0; box-shadow: none; width: 100%; padding: 15mm; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="no-print">
+    <h2 style="margin-top:0">Master Invoice Editor</h2>
+    <div class="editor-grid">
+        <div class="field full-width"><label>Hotel Name</label><input type="text" id="in_h_name" value="HOTEL PLANET 9"></div>
+        <div class="field full-width"><label>Hotel Address</label><textarea id="in_h_addr">Opposite to Canara Bank, Bagicha Road, Ramanujganj, Chhattisgarh, India-497220</textarea></div>
+        <div class="field"><label>Hotel GSTIN</label><input type="text" id="in_h_gst" value="22AWHPG3630P2ZH"></div>
+        <div class="field"><label>State Code</label><input type="text" id="in_state" value="22-Chhattisgarh"></div>
+
+        <div class="field"><label>Guest Name</label><input type="text" id="in_g_name" value="MR SANJIV KEHRI"></div>
+        <div class="field"><label>Guest Address</label><input type="text" id="in_g_addr" value="AMBIKAPUR 497001,India"></div>
+        <div class="field"><label>Folio No</label><input type="text" id="in_folio" value="F25000928"></div>
+        <div class="field"><label>Bill No</label><input type="text" id="in_bill" value="B25000920"></div>
+
+        <div class="field"><label>Room No</label><input type="text" id="in_room" value="MARS"></div>
+        <div class="field"><label>Check-In Date/Time</label><input type="text" id="in_ci" value="17-12-2025 10:59 PM"></div>
+        <div class="field"><label>Check-Out Date/Time</label><input type="text" id="in_co" value="18-12-2025 10:28 AM"></div>
+        <div class="field"><label>HSN/SAC Code</label><input type="text" id="in_hsn" value="996311"></div>
+
+        <div class="field"><label>Base Amount (Rs)</label><input type="number" id="in_amt" value="1700"></div>
+        <div class="field"><label>CGST %</label><input type="number" id="in_tax_p" value="2.5"></div>
+        <div class="field"><label>Payment Method</label><input type="text" id="in_pay_method" value="PAYTM()"></div>
+    </div>
+    <button class="btn-print" onclick="syncAndPrint()">GENERATE & PRINT CLEAN PDF</button>
+</div>
+
+<div class="container">
+    <div class="header">
+        <h1 id="out_h_name">HOTEL PLANET 9</h1>
+        <div class="address-line" id="out_h_addr">Opposite to Canara Bank, Bagicha Road,<br>Ramanujganj, Chhattisgarh, India-497220</div>
+        <div class="address-line">GSTIN: <span id="out_h_gst">22AWHPG3630P2ZH</span></div>
+    </div>
+
+    <div class="tax-invoice-bar">
+        <span style="visibility:hidden">spacer</span>
+        <span>Tax Invoice</span>
+        <span class="page-num">Page1/1</span>
+    </div>
+
+    <table class="info-table">
+        <tr>
+            <td class="label">Folio No</td><td class="colon">:</td><td class="val" id="out_folio">F25000928</td>
+            <td class="label">Room No</td><td class="colon">:</td><td class="val" id="out_room">MARS</td>
+            <td class="label">Room Type</td><td class="colon">:</td><td class="val">PREMIER</td>
+        </tr>
+        <tr>
+            <td class="label">Bill No</td><td class="colon">:</td><td class="val" id="out_bill">B25000920</td>
+            <td colspan="3"></td>
+            <td class="label">Room Tariff</td><td class="colon">:</td><td class="val" id="out_rt">1700.0000</td>
+        </tr>
+        <tr>
+            <td class="label">Guest Name</td><td class="colon">:</td><td class="val" id="out_g_name">MR SANJIV KEHRI</td>
+            <td class="label">Pax</td><td class="colon">:</td><td class="val">1</td>
+            <td class="label">Food Plan:</td><td colspan="2">EP PLAN</td>
+        </tr>
+        <tr>
+            <td class="label">Co. Name</td><td class="colon">:</td><td class="val"></td>
+            <td colspan="3"></td>
+            <td class="label">Check In Date</td><td class="colon">:</td><td class="val" id="out_ci">17-12-2025 10:59 PM</td>
+        </tr>
+        <tr>
+            <td class="label">Address</td><td class="colon">:</td><td class="val" id="out_g_addr">AMBIKAPUR<br>497001,India</td>
+            <td colspan="3"></td>
+            <td class="label">Check Out Date</td><td class="colon">:</td><td class="val" id="out_co">18-12-2025 10:28 AM</td>
+        </tr>
+    </table>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th><th>HSN/SAC</th><th>Description</th><th class="text-right">Amount</th><th colspan="2" class="text-center">CGST</th><th colspan="2" class="text-center">SGST</th><th class="text-right">Total</th>
+            </tr>
+            <tr>
+                <th colspan="4"></th><th class="text-center">%</th><th class="text-center">Amt.</th><th class="text-center">%</th><th class="text-center">Amt.</th><th class="text-right">Amt.</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="border-bottom">
+                <td id="out_tab_date1">17-12-2025</td><td id="out_tab_hsn">996311</td><td>Room Tariff EP PLAN</td><td class="text-right" id="out_base">1,700.00</td><td class="text-center" id="out_tax_p1">2.50</td><td class="text-center" id="out_tax_h1">42.50</td><td class="text-center" id="out_tax_p2">2.50</td><td class="text-center" id="out_tax_h2">42.50</td><td class="text-right" id="out_total">1,785.00</td>
+            </tr>
+            <tr class="totals-row">
+                <td colspan="3">Tariff & Charges Total</td><td class="text-right" id="out_base2">1,700.00</td><td></td><td class="text-center" id="out_tax_h3">42.50</td><td></td><td class="text-center" id="out_tax_h4">42.50</td><td></td>
+            </tr>
+            <tr>
+                <td id="out_tab_date2">18-12-2025</td><td colspan="2" id="out_pay_method">PAYTM()</td><td class="text-right" id="out_pay_val">-1,785.00</td><td colspan="5"></td>
+            </tr>
+            <tr class="totals-row" style="border-bottom: 1px dotted #000;">
+                <td colspan="3">Payment Total</td><td class="text-right" id="out_pay_val2">-1,785.00</td><td colspan="5"></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="margin-top:15px; font-size: 10px;">
+        State Code & Name of Supplier: <span id="out_state">22-Chhattisgarh</span>
+    </div>
+    
+    <div class="net-balance">
+        <div>Tarf: [ <span id="out_f_base">1,700.00</span> ] &nbsp;&nbsp; Tax: [ <span id="out_f_tax">85.00</span> ]</div>
+        <div>Net Balance (Rs.) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span id="out_f_total">1785.00</span></div>
+    </div>
+
+    <div class="footer-sigs">
+        <div>Frontoffice Signature</div>
+        <div>Guest Signature</div>
+    </div>
+</div>
+
+<script>
+function syncAndPrint() {
+    // Hotel & Guest Info
+    document.getElementById('out_h_name').innerText = document.getElementById('in_h_name').value;
+    document.getElementById('out_h_addr').innerText = document.getElementById('in_h_addr').value;
+    document.getElementById('out_h_gst').innerText = document.getElementById('in_h_gst').value;
+    document.getElementById('out_state').innerText = document.getElementById('in_state').value;
+    document.getElementById('out_g_name').innerText = document.getElementById('in_g_name').value;
+    document.getElementById('out_g_addr').innerText = document.getElementById('in_g_addr').value;
+    document.getElementById('out_folio').innerText = document.getElementById('in_folio').value;
+    document.getElementById('out_bill').innerText = document.getElementById('in_bill').value;
+    document.getElementById('out_room').innerText = document.getElementById('in_room').value;
+    document.getElementById('out_ci').innerText = document.getElementById('in_ci').value;
+    document.getElementById('out_co').innerText = document.getElementById('in_co').value;
+    document.getElementById('out_tab_hsn').innerText = document.getElementById('in_hsn').value;
+    document.getElementById('out_pay_method').innerText = document.getElementById('in_pay_method').value;
+
+    // Dates
+    const d1 = document.getElementById('in_ci').value.split(' ')[0];
+    const d2 = document.getElementById('in_co').value.split(' ')[0];
+    document.getElementById('out_tab_date1').innerText = d1;
+    document.getElementById('out_tab_date2').innerText = d2;
+
+    // Calculations
+    let base = parseFloat(document.getElementById('in_amt').value) || 0;
+    let taxPerc = parseFloat(document.getElementById('in_tax_p').value) || 0;
+    let taxHalf = base * (taxPerc / 100);
+    let total = base + (taxHalf * 2);
+
+    const fmt = (n) => n.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+    document.getElementById('out_rt').innerText = base.toFixed(4);
+    document.getElementById('out_base').innerText = fmt(base);
+    document.getElementById('out_base2').innerText = fmt(base);
+    document.getElementById('out_f_base').innerText = fmt(base);
+    
+    document.getElementById('out_tax_p1').innerText = taxPerc.toFixed(2);
+    document.getElementById('out_tax_p2').innerText = taxPerc.toFixed(2);
+    document.getElementById('out_tax_h1').innerText = fmt(taxHalf);
+    document.getElementById('out_tax_h2').innerText = fmt(taxHalf);
+    document.getElementById('out_tax_h3').innerText = fmt(taxHalf);
+    document.getElementById('out_tax_h4').innerText = fmt(taxHalf);
+    document.getElementById('out_f_tax').innerText = fmt(taxHalf * 2);
+
+    document.getElementById('out_total').innerText = fmt(total);
+    document.getElementById('out_pay_val').innerText = "-" + fmt(total);
+    document.getElementById('out_pay_val2').innerText = "-" + fmt(total);
+    document.getElementById('out_f_total').innerText = total.toFixed(2);
+
+    window.print();
+}
+</script>
+</body>
+</html>
