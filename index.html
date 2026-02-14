@@ -179,7 +179,18 @@ function syncAndPrint() {
     document.getElementById('out_h_gst').innerText = document.getElementById('in_h_gst').value;
     document.getElementById('out_state').innerText = document.getElementById('in_state').value;
     document.getElementById('out_g_name').innerText = document.getElementById('in_g_name').value;
-    document.getElementById('out_g_addr').innerText = document.getElementById('in_g_addr').value;
+    // Split customer address into two lines: first word (city) + rest
+    const guestAddr = document.getElementById('in_g_addr').value;
+    const firstSpaceIndex = guestAddr.indexOf(' ');
+    let formattedAddr;
+    if (firstSpaceIndex !== -1) {
+        const city = guestAddr.substring(0, firstSpaceIndex);
+        const rest = guestAddr.substring(firstSpaceIndex + 1);
+        formattedAddr = city + '<br>' + rest;
+    } else {
+        formattedAddr = guestAddr;
+    }
+    document.getElementById('out_g_addr').innerHTML = formattedAddr;
     document.getElementById('out_folio').innerText = document.getElementById('in_folio').value;
     document.getElementById('out_bill').innerText = document.getElementById('in_bill').value;
     document.getElementById('out_room').innerText = document.getElementById('in_room').value;
